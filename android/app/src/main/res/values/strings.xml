@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Wallace</string>
+    <string name="title_activity_main">Wallace</string>
+    <string name="package_name">com.sangbumchoi.wallace</string>
+    <string name="custom_url_scheme">com.sangbumchoi.wallace</string>
+</resources>
