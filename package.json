@@ -1,0 +1,115 @@
+{
+  "name": "wallace",
+  "version": "0.10.8",
+  "private": true,
+  "description": "Graph-first knowledge workspace with AI and voice",
+  "author": "Sangbum Choi",
+  "main": "electron/main.cjs",
+  "scripts": {
+    "dev": "concurrently -k \"vite --host 127.0.0.1\" \"wait-on http://127.0.0.1:5173 && electron . --dev\"",
+    "dev:web": "vite --host 127.0.0.1",
+    "build": "tsc --noEmit && vite build",
+    "test": "node --test tests/*.test.cjs",
+    "pack": "npm run build && node scripts/mac-release.mjs pack",
+    "dist:mac": "npm run build && node scripts/mac-release.mjs release",
+    "dist:win": "npm run build && electron-builder --win",
+    "test:desktop": "node tests/desktop.cjs",
+    "test:ui": "node tests/ui.cjs",
+    "mobile:sync": "npm run build && cap sync",
+    "cloud:start": "node server/cloud.mjs",
+    "cloud:token": "node -e \"console.log(require(\\\"node:crypto\\\").randomBytes(32).toString(\\\"base64url\\\"))\"",
+    "install:mac": "npm run build && node scripts/mac-release.mjs install"
+  },
+  "build": {
+    "appId": "com.sangbumchoi.wallace",
+    "productName": "Wallace",
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "package.json",
+      "shared/*.mjs"
+    ],
+    "directories": {
+      "output": "release"
+    },
+    "mac": {
+      "category": "public.app-category.productivity",
+      "target": [
+        "pkg",
+        "zip"
+      ],
+      "extendInfo": {
+        "NSMicrophoneUsageDescription": "Wallace converts recordings into knowledge pages when you choose to record."
+      }
+    },
+    "pkg": {
+      "artifactName": "Wallace-${version}-${arch}.pkg",
+      "installLocation": "/Applications",
+      "isRelocatable": false,
+      "isVersionChecked": true,
+      "allowAnywhere": false,
+      "allowCurrentUserHome": false
+    },
+    "win": {
+      "target": [
+        "nsis"
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    },
+    "icon": "build/icon.png",
+    "extraResources": [
+      {
+        "from": "electron/local-stt.py",
+        "to": "local-stt.py"
+      }
+    ]
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.6.2",
+    "@capacitor/core": "^8.6.2",
+    "@capacitor/filesystem": "^8.1.5",
+    "@capacitor/ios": "^8.6.2",
+    "@capacitor/preferences": "^8.0.1",
+    "@capacitor/share": "^8.0.3",
+    "@modelcontextprotocol/sdk": "^1.32.2",
+    "@noble/hashes": "^2.4.0",
+    "@xyflow/react": "^12.12.1",
+    "capacitor-secure-storage-plugin": "^0.14.2",
+    "csv-parse": "^7.0.3",
+    "dompurify": "^3.4.17",
+    "exceljs": "4.4.0",
+    "lucide-react": "^1.72.0",
+    "marked": "^18.2.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "sanitize-html": "^2.18.2",
+    "yauzl": "^3.4.0"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.6.2",
+    "@playwright/test": "^1.65.0",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.3.0",
+    "concurrently": "^10.0.7",
+    "electron": "^45.3.1",
+    "electron-builder": "^26.18.0",
+    "prettier": "^3.10.1",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.8",
+    "wait-on": "^9.5.1",
+    "yazl": "^3.3.1"
+  },
+  "type": "module",
+  "overrides": {
+    "exceljs": { "uuid": "11.1.1" }
+  },
+  "allowScripts": {
+    "electron": true,
+    "esbuild": true,
+    "electron-winstaller": true
+  }
+}
