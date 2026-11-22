@@ -29,7 +29,7 @@ export default function RenameableSidebarRow({
   if (name !== null) {
     return (
       <form
-        className="sidebar-rename"
+        className={`renameable-sidebar-row sidebar-rename${selected ? " current" : ""}`}
         onSubmit={(event) => {
           event.preventDefault();
           const value = name.trim();
@@ -38,12 +38,19 @@ export default function RenameableSidebarRow({
           closeEditor();
         }}
       >
+        <span className="sidebar-row-icon" aria-hidden="true">
+          {icon}
+        </span>
         <input
           aria-label={renameLabel}
           autoFocus
           maxLength={300}
           value={name}
-          onFocus={(event) => event.currentTarget.select()}
+          onFocus={(event) => {
+            const input = event.currentTarget;
+            input.setSelectionRange(0, input.value.length, "backward");
+            input.scrollLeft = 0;
+          }}
           onChange={(event) => setName(event.target.value)}
           onKeyDown={(event) => {
             event.stopPropagation();
@@ -79,10 +86,13 @@ export default function RenameableSidebarRow({
         ref={openButton}
         className="conversation-row"
         aria-label={label}
+        aria-current={selected ? "page" : undefined}
         title={title}
         onClick={onOpen}
       >
-        {icon}
+        <span className="sidebar-row-icon" aria-hidden="true">
+          {icon}
+        </span>
         <span>{title}</span>
       </button>
       <button

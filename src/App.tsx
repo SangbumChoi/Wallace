@@ -16,7 +16,6 @@ import {
 import {
   Archive,
   Check,
-  Ellipsis,
   Paperclip,
   Network,
   Plus,
@@ -272,10 +271,6 @@ function WorkspaceApp({
   const [selected, setSelected] = useState("");
   const [query, setQuery] = useState("");
   const [activeConversation, setActiveConversation] = useState("");
-  const activeConversationRef = useRef(activeConversation);
-  useEffect(() => {
-    activeConversationRef.current = activeConversation;
-  }, [activeConversation]);
   const [documentTarget, setDocumentTarget] = useState<"spec" | "node">("spec");
   const [workspaceGraph, setWorkspaceGraph] = useState(false);
   const [cloudOpen, setCloudOpen] = useState(false);
@@ -491,7 +486,7 @@ function WorkspaceApp({
     screen === "conversation" &&
     !workspaceGraph &&
     (notice === "Knowledge note saved." ||
-      notice.startsWith("Conversation ended."));
+      notice.startsWith("Knowledge saved. Conversation archived."));
   const compactNoteId = conversation.compactPageId;
   const compactLinkedIds = new Set(
     compactNoteId
@@ -1104,7 +1099,7 @@ function WorkspaceApp({
     }
   }
 
-  async function finishConversation() {
+  async function saveConversationKnowledge() {
     const target = conversation;
     if (
       !target.id ||
@@ -1114,7 +1109,9 @@ function WorkspaceApp({
     )
       return;
     if (question.trim() || draft.trim()) {
-      setNotice("Send or clear the draft before ending this conversation.");
+      setNotice(
+        "Send or clear the draft before saving this conversation as knowledge.",
+      );
       return;
     }
     const recentTurns = target.aiTurns ?? [];
@@ -1274,16 +1271,19 @@ function WorkspaceApp({
             : item,
         ),
       }));
-      if (activeConversationRef.current === target.id) setGraphVisible(true);
       setNotice(
         unique.size > selectedFiles.length
-          ? "Conversation ended. The latest 20 generated files were added to the graph."
-          : "Conversation ended. Knowledge note saved.",
+          ? "Knowledge saved. Conversation archived. The latest 20 generated files were added to the graph."
+          : "Knowledge saved. Conversation archived.",
       );
     } catch (error) {
       if (generation === requestGeneration.current)
         setNotice(
-          "Could not end the conversation. " + (error as Error).message,
+          "Could not save as knowledge. " +
+            (error as Error).message.replace(
+              /^Error invoking remote method '[^']+': (Error: )?/,
+              "",
+            ),
         );
     } finally {
       setEndingConversation((active) => (active === target.id ? "" : active));
@@ -2137,7 +2137,11 @@ function WorkspaceApp({
                   <h1 title={conversation.title}>
                     {conversation.title || "Untitled conversation"}
                   </h1>
-                  <div className="thread-actions">
+                  <div
+                    className="thread-actions"
+                    role="group"
+                    aria-label="Conversation actions"
+                  >
                     {(hasContext || turns.length > 0) && (
                       <button
                         title="Connection graph"
@@ -2145,196 +2149,141 @@ function WorkspaceApp({
                         aria-pressed={graphVisible}
                         onClick={() => setGraphVisible(!graphVisible)}
                       >
-                        <Network size={17} />
+                        <Network size={16} /> Graph
                       </button>
                     )}
-                    <details
-                      className="conversation-menu"
-                      key={conversation.id}
-                      onBlur={(event) => {
-                        if (!event.currentTarget.contains(event.relatedTarget))
-                          event.currentTarget.open = false;
-                      }}
-                    >
-                      <summary
-                        aria-label="Conversation actions"
-                        title="Conversation actions"
-                      >
-                        <Ellipsis size={18} /> <span>Actions</span>
-                      </summary>
-                      <div
-                        className="conversation-menu-items"
-                        onClick={(event) => {
-                          if (
-                            event.target instanceof Element &&
-                            event.target.closest("button")
-                          ) {
-                            const menu = event.currentTarget.closest("details");
-                            menu?.querySelector("summary")?.focus();
-                            menu?.removeAttribute("open");
-                          }
+                    {hasContext && (
+                      <button
+                        title="Go to conversation spec"
+                        aria-label="Go to conversation spec"
+                        onClick={() => {
+                          choose(`spec:${conversation.id}`);
+                          requestAnimationFrame(() =>
+                            document
+                              .getElementById("thread-detail")
+                              ?.scrollIntoView({ block: "start" }),
+                          );
                         }}
                       >
-                        {!compactNoteId && (turns.length > 0 || hasContext) && (
-                          <button
-                            type="button"
-                            disabled={!!request || !!endingConversation}
-                            onClick={() =>
-                              setConversationAction({
-                                id: conversation.id,
-                                type: "knowledge",
-                              })
-                            }
-                          >
-                            <BookOpen size={17} /> Save as knowledge
-                          </button>
-                        )}
-                        {hasContext && (
-                          <button
-                            title="Go to conversation spec"
-                            aria-label="Go to conversation spec"
-                            onClick={() => {
-                              choose(`spec:${conversation.id}`);
-                              requestAnimationFrame(() =>
-                                document
-                                  .getElementById("thread-detail")
-                                  ?.scrollIntoView({ block: "start" }),
-                              );
-                            }}
-                          >
-                            <AlignLeft size={17} /> Go to conversation spec
-                          </button>
-                        )}
-                        <button
-                          className={conversation.favorite ? "is-favorite" : ""}
-                          title={
-                            conversation.favorite
-                              ? "Remove from Favorites"
-                              : "Add to Favorites"
-                          }
-                          aria-label={
-                            conversation.favorite
-                              ? "Remove from Favorites"
-                              : "Add to Favorites"
-                          }
-                          aria-pressed={conversation.favorite}
-                          onClick={() =>
-                            updateConversation({
-                              favorite: !conversation.favorite,
+                        <AlignLeft size={17} /> Spec
+                      </button>
+                    )}
+                    <button
+                      className={conversation.favorite ? "is-favorite" : ""}
+                      title={
+                        conversation.favorite
+                          ? "Remove from Favorites"
+                          : "Add to Favorites"
+                      }
+                      aria-label={
+                        conversation.favorite
+                          ? "Remove from Favorites"
+                          : "Add to Favorites"
+                      }
+                      aria-pressed={conversation.favorite}
+                      onClick={() =>
+                        updateConversation({
+                          favorite: !conversation.favorite,
+                        })
+                      }
+                    >
+                      <Star
+                        size={17}
+                        fill={conversation.favorite ? "currentColor" : "none"}
+                      />{" "}
+                      {conversation.favorite ? "Favorited" : "Favorite"}
+                    </button>
+                    <button
+                      type="button"
+                      title={
+                        isMobileApp
+                          ? "Rename conversation"
+                          : `Rename conversation (${shortcutText(shortcuts.rename)})`
+                      }
+                      aria-label="Rename conversation"
+                      aria-keyshortcuts={
+                        isMobileApp ? undefined : shortcutAria(shortcuts.rename)
+                      }
+                      onClick={() =>
+                        setConversationAction({
+                          id: conversation.id,
+                          type: "rename",
+                        })
+                      }
+                    >
+                      <Pencil size={16} /> Rename
+                    </button>
+                    <button
+                      type="button"
+                      title={
+                        conversation.archived
+                          ? "Restore conversation"
+                          : "Archive conversation"
+                      }
+                      aria-label={
+                        conversation.archived
+                          ? "Restore conversation"
+                          : "Archive conversation"
+                      }
+                      disabled={!!request}
+                      onClick={() =>
+                        conversation.archived
+                          ? updateConversation({
+                              archived: false,
+                              endedAt: undefined,
+                              involved: true,
                             })
-                          }
-                        >
-                          <Star
-                            size={17}
-                            fill={
-                              conversation.favorite ? "currentColor" : "none"
-                            }
-                          />{" "}
-                          {conversation.favorite
-                            ? "Remove from Favorites"
-                            : "Add to Favorites"}
-                        </button>
-                        <button
-                          type="button"
-                          title={
-                            isMobileApp
-                              ? "Rename conversation"
-                              : `Rename conversation (${shortcutText(shortcuts.rename)})`
-                          }
-                          aria-label="Rename conversation"
-                          aria-keyshortcuts={
-                            isMobileApp
-                              ? undefined
-                              : shortcutAria(shortcuts.rename)
-                          }
-                          onClick={() =>
-                            setConversationAction({
+                          : setConversationAction({
                               id: conversation.id,
-                              type: "rename",
+                              type: "archive",
                             })
-                          }
-                        >
-                          <Pencil size={17} /> Rename conversation
-                        </button>
-                        <button
-                          type="button"
-                          title={
-                            conversation.archived
-                              ? "Restore conversation"
-                              : "Archive conversation"
-                          }
-                          aria-label={
-                            conversation.archived
-                              ? "Restore conversation"
-                              : "Archive conversation"
-                          }
-                          disabled={!!request}
-                          onClick={() =>
-                            conversation.archived
-                              ? updateConversation({
-                                  archived: false,
-                                  endedAt: undefined,
-                                  involved: true,
-                                })
-                              : setConversationAction({
-                                  id: conversation.id,
-                                  type: "archive",
-                                })
-                          }
-                        >
-                          <Archive size={17} />{" "}
-                          {conversation.archived
-                            ? "Restore conversation"
-                            : "Archive conversation"}
-                        </button>
-                        <button
-                          type="button"
-                          className="thread-delete"
-                          title={
-                            isMobileApp
-                              ? "Delete conversation"
-                              : `Delete conversation (${shortcutText(shortcuts.delete)})`
-                          }
-                          aria-label="Delete conversation"
-                          aria-keyshortcuts={
-                            isMobileApp
-                              ? undefined
-                              : shortcutAria(shortcuts.delete)
-                          }
-                          onClick={() =>
-                            setConversationAction({
-                              id: conversation.id,
-                              type: "delete",
-                            })
-                          }
-                        >
-                          <Trash2 size={17} /> Delete conversation
-                        </button>
-                        <button
-                          title={
-                            conversation.involved
-                              ? "Remove from my list"
-                              : "Add to my list"
-                          }
-                          aria-label={
-                            conversation.involved
-                              ? "Remove from my list"
-                              : "Add to my list"
-                          }
-                          aria-pressed={conversation.involved}
-                          onClick={() =>
-                            updateConversation({
-                              involved: !conversation.involved,
-                            })
-                          }
-                        >
-                          <Users size={17} />{" "}
-                          {conversation.involved
-                            ? "Remove from my list"
-                            : "Add to my list"}
-                        </button>
-                      </div>
-                    </details>
+                      }
+                    >
+                      <Archive size={17} />{" "}
+                      {conversation.archived ? "Restore" : "Archive"}
+                    </button>
+                    <button
+                      type="button"
+                      className="thread-delete"
+                      title={
+                        isMobileApp
+                          ? "Delete conversation"
+                          : `Delete conversation (${shortcutText(shortcuts.delete)})`
+                      }
+                      aria-label="Delete conversation"
+                      aria-keyshortcuts={
+                        isMobileApp ? undefined : shortcutAria(shortcuts.delete)
+                      }
+                      onClick={() =>
+                        setConversationAction({
+                          id: conversation.id,
+                          type: "delete",
+                        })
+                      }
+                    >
+                      <Trash2 size={16} /> Delete
+                    </button>
+                    <button
+                      title={
+                        conversation.involved
+                          ? "Remove from my list"
+                          : "Add to my list"
+                      }
+                      aria-label={
+                        conversation.involved
+                          ? "Remove from my list"
+                          : "Add to my list"
+                      }
+                      aria-pressed={conversation.involved}
+                      onClick={() =>
+                        updateConversation({
+                          involved: !conversation.involved,
+                        })
+                      }
+                    >
+                      <Users size={17} />{" "}
+                      {conversation.involved ? "In my list" : "Add to my list"}
+                    </button>
                   </div>
                 </div>
                 <ConversationPurpose
@@ -2360,21 +2309,21 @@ function WorkspaceApp({
                       savedContext) && (
                       <button
                         type="button"
-                        className="knowledge-save end-conversation"
+                        className="knowledge-save save-knowledge-primary"
                         disabled={
                           !!request || !!endingConversation || attachingFiles
                         }
-                        onClick={() => void finishConversation()}
+                        onClick={() => void saveConversationKnowledge()}
                       >
                         <Check size={16} />
                         {endingConversation === conversation.id
-                          ? "Creating knowledge…"
-                          : "End conversation"}
+                          ? "Saving as knowledge…"
+                          : "Save as knowledge"}
                       </button>
                     )}
                   {conversation.endedAt && !knowledgeSavedNotice && (
                     <span className="knowledge-saved-status">
-                      <Check size={14} /> Conversation ended
+                      <Check size={14} /> Conversation archived
                     </span>
                   )}
 
@@ -2396,10 +2345,7 @@ function WorkspaceApp({
                         })
                       }
                     >
-                      <BookOpen size={16} />{" "}
-                      {conversation.compactPageId
-                        ? "Manage saved knowledge"
-                        : "Save as knowledge"}
+                      <BookOpen size={16} /> Manage saved knowledge
                     </button>
                   )}
                   {compactNoteId && (
@@ -3405,9 +3351,7 @@ function WorkspaceApp({
                 : conversationAction.type === "archive"
                   ? "Archive to knowledge base"
                   : conversationAction.type === "knowledge"
-                    ? actionConversation.compactPageId
-                      ? "Manage saved knowledge"
-                      : "Save as knowledge"
+                    ? "Manage saved knowledge"
                     : "Delete this conversation?"}
             </h2>
             {conversationAction.type === "rename" ? (

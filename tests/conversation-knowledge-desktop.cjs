@@ -11,6 +11,7 @@ const { Workbook } = require("exceljs");
     path.join(os.tmpdir(), "wallace-knowledge-"),
   );
   const prompts = [];
+  let rejectFirstSummary = true;
   const server = http.createServer(async (req, res) => {
     let raw = "";
     for await (const chunk of req) raw += chunk;
@@ -20,6 +21,11 @@ const { Workbook } = require("exceljs");
     const compact = body.messages[0].content.includes(
       "concise reusable knowledge note",
     );
+    if (compact && rejectFirstSummary) {
+      rejectFirstSummary = false;
+      res.writeHead(503).end();
+      return;
+    }
     const content = compact
       ? "The Atlas onboarding pilot tracks activation."
       : [
@@ -89,14 +95,41 @@ const { Workbook } = require("exceljs");
     await page.getByRole("button", { name: "Download metrics.xlsx" }).waitFor();
     assert.match(prompts[0], /Activation \| 14/);
     const saved = page.getByRole("button", { name: "Open saved note" });
-    await page
-      .getByRole("button", { name: "End conversation", exact: true })
-      .click();
+    const actions = page.getByRole("group", { name: "Conversation actions" });
+    await expect(
+      actions.getByRole("button", { name: "Rename conversation" }),
+    ).toBeVisible();
+    const saveKnowledge = page.getByRole("button", {
+      name: "Save as knowledge",
+      exact: true,
+    });
+    await saveKnowledge.click();
+    await expect(
+      page
+        .getByRole("status")
+        .filter({ hasText: "Could not save as knowledge." }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("button", {
+        name: "Open conversation: Atlas onboarding pilot",
+      }),
+    ).toBeVisible();
+    await expect(saved).toHaveCount(0);
+    await saveKnowledge.click();
     await saved.waitFor();
+    await expect(
+      page.getByRole("button", {
+        name: "Open conversation: Atlas onboarding pilot",
+      }),
+    ).toHaveCount(0);
+    await expect(
+      page.getByRole("complementary", { name: "Connection graph" }),
+    ).toHaveCount(0);
+    await actions.getByRole("button", { name: "Connection graph" }).click();
     await expect(
       page.getByRole("complementary", { name: "Connection graph" }),
     ).toBeVisible();
-    assert.match(prompts[1], /pilot.xlsx/);
+    assert.match(prompts[2], /pilot.xlsx/);
     await page.getByRole("button", { name: "Reopen conversation" }).waitFor();
     await page.screenshot({
       path: "test-results/ended-conversation-graph.png",
@@ -140,7 +173,7 @@ const { Workbook } = require("exceljs");
     await page.getByRole("button", { name: "Send question" }).click();
     await page.getByRole("button", { name: "Download index.html" }).waitFor();
     await page
-      .getByRole("button", { name: "End conversation", exact: true })
+      .getByRole("button", { name: "Save as knowledge", exact: true })
       .click();
     await page.getByRole("button", { name: "Open saved note" }).waitFor();
     await page.waitForFunction(

@@ -101,7 +101,6 @@ const fs = require("node:fs/promises");
       })
       .click();
     assert.equal(await page.locator(".thread-entry").count(), 2);
-    await page.locator(".conversation-menu > summary").click();
     await page
       .getByRole("button", { name: "Add to Favorites", exact: true })
       .click();
@@ -111,7 +110,6 @@ const fs = require("node:fs/promises");
         exact: true,
       })
       .waitFor();
-    await page.locator(".conversation-menu > summary").click();
     await page
       .getByRole("button", { name: "Remove from my list", exact: true })
       .click();
@@ -124,14 +122,15 @@ const fs = require("node:fs/promises");
         .count(),
       0,
     );
-    await page.getByLabel("Search notes and conversations").fill("Knowledge discovery");
+    await page
+      .getByLabel("Search notes and conversations")
+      .fill("Knowledge discovery");
     await page
       .getByRole("button", {
         name: "Open conversation: Knowledge discovery",
         exact: true,
       })
       .click();
-    await page.locator(".conversation-menu > summary").click();
     await page
       .getByRole("button", { name: "Add to my list", exact: true })
       .click();
@@ -140,11 +139,40 @@ const fs = require("node:fs/promises");
       name: "Rename conversation: Knowledge discovery",
       exact: true,
     });
+    const row = rename.locator("..");
+    const rowButton = row.getByRole("button", {
+      name: "Open conversation: Knowledge discovery",
+    });
+    assert.equal(await rowButton.getAttribute("aria-current"), "page");
+    const rowBackground = await row.evaluate(
+      (element) => getComputedStyle(element).backgroundColor,
+    );
+    await rowButton.hover();
+    await rowButton.evaluate((element) =>
+      Promise.all(element.getAnimations().map((animation) => animation.finished)),
+    );
+    assert.equal(
+      await rowButton.evaluate(
+        (element) => getComputedStyle(element).backgroundColor,
+      ),
+      "rgba(0, 0, 0, 0)",
+    );
+    assert.equal(
+      await row.evaluate((element) => getComputedStyle(element).backgroundColor),
+      rowBackground,
+    );
+    const rowBounds = await row.boundingBox();
+    const rowTitleBounds = await rowButton
+      .getByText("Knowledge discovery")
+      .boundingBox();
     await rename.click();
     const titleEditor = page.getByRole("textbox", {
       name: "Rename conversation",
       exact: true,
     });
+    const editorBounds = await titleEditor.boundingBox();
+    assert.equal(editorBounds.x, rowTitleBounds.x);
+    assert.equal(editorBounds.height, rowBounds.height);
     await titleEditor.fill("취소할 Title");
     await titleEditor.press("Escape");
     await rename.click();
@@ -230,7 +258,9 @@ const fs = require("node:fs/promises");
     await page
       .getByRole("heading", { name: "커스텀 HTML", exact: true })
       .waitFor();
-    await page.getByLabel("Search notes and conversations").fill("Knowledge discovery");
+    await page
+      .getByLabel("Search notes and conversations")
+      .fill("Knowledge discovery");
     assert.equal(
       await page
         .getByRole("button", {
@@ -363,10 +393,8 @@ const fs = require("node:fs/promises");
       name: "Remove from Favorites",
       exact: true,
     });
-    await header.locator(".conversation-menu > summary").click();
     assert.equal(await removeFavorite.getAttribute("aria-pressed"), "true");
     await removeFavorite.click();
-    await header.locator(".conversation-menu > summary").click();
     assert.equal(
       await header
         .getByRole("button", { name: "Add to Favorites", exact: true })
@@ -382,9 +410,7 @@ const fs = require("node:fs/promises");
         .count(),
       0,
     );
-    await header.locator(".conversation-menu > summary").click();
     await page.setViewportSize({ width: 390, height: 844 });
-    await header.locator(".conversation-menu > summary").click();
     await header
       .getByRole("button", { name: "Rename conversation", exact: true })
       .click();
@@ -408,7 +434,6 @@ const fs = require("node:fs/promises");
       name: "Delete conversation",
       exact: true,
     });
-    await header.locator(".conversation-menu > summary").click();
     await deleteButton.click();
     const confirmDelete = page.getByRole("dialog", {
       name: "Delete this conversation?",
@@ -420,7 +445,6 @@ const fs = require("node:fs/promises");
     await header
       .getByRole("heading", { name: "Conversation 상단에서 수정" })
       .waitFor();
-    await header.locator(".conversation-menu > summary").click();
     await deleteButton.click();
     await confirmDelete
       .getByRole("button", { name: "Delete conversation", exact: true })
@@ -443,7 +467,6 @@ const fs = require("node:fs/promises");
       })
       .click();
     assert.equal(await page.locator(".thread-entry").count(), 2);
-    await header.locator(".conversation-menu > summary").click();
     await deleteButton.click();
     await confirmDelete
       .getByRole("button", { name: "Delete conversation", exact: true })
@@ -454,7 +477,6 @@ const fs = require("node:fs/promises");
         exact: true,
       })
       .click();
-    await header.locator(".conversation-menu > summary").click();
     await deleteButton.click();
     await confirmDelete
       .getByRole("button", { name: "Delete conversation", exact: true })
